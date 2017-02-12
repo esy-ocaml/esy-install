@@ -1,6 +1,6 @@
 /* @flow */
 
-import type {Manifest} from './types.js';
+import type {Manifest, PackageRemote} from './types.js';
 import type PackageResolver from './package-resolver.js';
 import type {Reporter} from './reporters/index.js';
 import type Config from './config.js';
@@ -160,7 +160,7 @@ export default class PackageLinker {
     // list of artifacts in modules to remove from extraneous removal
     const artifactFiles = [];
 
-    const copyQueue: Map<string, CopyQueueItem> = new Map();
+    const copyQueue: Map<string, {item: CopyQueueItem, remote: any}> = new Map();
     const hardlinkQueue: Map<string, CopyQueueItem> = new Map();
     const hardlinksEnabled = linkDuplicates && (await fs.hardlinksWork(this.config.cwd));
 
@@ -222,14 +222,17 @@ export default class PackageLinker {
           copiedSrcs.set(src, dest);
         }
         copyQueue.set(dest, {
-          src,
-          dest,
-          type,
-          onFresh() {
-            if (ref) {
-              ref.setFresh(true);
-            }
+          item: {
+            src,
+            dest,
+            type,
+            onFresh() {
+              if (ref) {
+                ref.setFresh(true);
+              }
+            },
           },
+          remote
         });
       } else {
         hardlinkQueue.set(dest, {
@@ -341,9 +344,11 @@ export default class PackageLinker {
       }
     }
 
+    const linkTasks = Array.from(copyQueue.values());
+
     //
     let tick;
-    await fs.copyBulk(Array.from(copyQueue.values()), this.reporter, {
+    await fs.copyBulk(linkTasks.map((item) => item.item), this.reporter, {
       possibleExtraneous,
       artifactFiles,
 
@@ -379,6 +384,16 @@ export default class PackageLinker {
       this.reporter.verbose(this.reporter.lang('verboseFileRemoveExtraneous', loc));
       await fs.unlink(loc);
     }
+
+    // inject PackageRemote info into installation dep tree
+    await Promise.all(linkTasks.map(async ({remote, item: {dest}}) => {
+      const packageJsonFilename = path.join(dest, 'package.json');
+      const packageJson = await fs.readJson(packageJsonFilename);
+      if (remote != null && remote.resolved != null) {
+        packageJson._resolved = remote.resolved;
+      }
+      await fs.writeJson(packageJsonFilename, packageJson);
+    }));
 
     // remove any empty scoped directories
     for (const scopedPath of scopedPaths) {

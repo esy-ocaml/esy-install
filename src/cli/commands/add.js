@@ -64,11 +64,16 @@ export class Add extends Install {
     const exact = this.flags.exact || Boolean(this.config.getOption('save-exact')) || configPrefix === '';
     const {hasVersion, range} = normalizePattern(pattern);
     let version;
-
-    if (getExoticResolver(pattern)) {
+    const Resolver = getExoticResolver(pattern);
+    if (Resolver) {
       // wasn't a name/range tuple so this is just a raw exotic pattern
-      version = pattern;
-    } else if (hasVersion && range && (semver.satisfies(pkg.version, range) || getExoticResolver(range))) {
+      version = Resolver.getPatternVersion(pattern, pkg, this.flags);
+      if (version == null) {
+        return pattern;
+      }
+    }
+
+    if (hasVersion && range && (semver.satisfies(pkg.version, range) || getExoticResolver(range))) {
       // if the user specified a range then use it verbatim
       version = range;
     } else {

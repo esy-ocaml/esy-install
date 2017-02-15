@@ -12,23 +12,48 @@
   <a href="https://travis-ci.org/yarnpkg/yarn"><img alt="Travis Status" src="https://travis-ci.org/yarnpkg/yarn.svg"></a>
   <a href="https://circleci.com/gh/yarnpkg/yarn"><img alt="Circle Status" src="https://circleci.com/gh/yarnpkg/yarn.svg?style=shield&circle-token=5f0a78473b0f440afb218bf2b82323cc6b3cb43f"></a>
   <a href="https://ci.appveyor.com/project/kittens/yarn/branch/master"><img alt="Appveyor Status" src="https://ci.appveyor.com/api/projects/status/0xdv8chwe2kmk463?svg=true"></a>
-  <a href="https://discord.gg/yarnpkg"><img alt="Discord Chat" src="https://img.shields.io/discord/226791405589233664.svg"></a>
-  <a href="http://commitizen.github.io/cz-cli/"><img alt="Commitizen friendly" src="https://img.shields.io/badge/commitizen-friendly-brightgreen.svg"></a>
+  <a href="https://discord.gg/yarnpkg"><img alt="Discord Chat" src="https://discordapp.com/api/guilds/226791405589233664/widget.png"></a>
 </p>
+
 ---
 
-**Fast:** Yarn caches every package it has downloaded, so it never needs to download the same package again. It also does almost everything concurrently to maximize resource utilization. This means even faster installs.
+# Esy (Yarn fork for native compilation with sandboxing)
 
-**Reliable:** Using a detailed but concise lockfile format and a deterministic algorithm for install operations, Yarn is able to guarantee that any installation that works on one system will work exactly the same on another system.
+## Developing Esy
+
+When developing esy (or cloning the repo to use locally), you must have filterdiff installed (which you can obtain via brew install patchutils).
+
+To make changes to esy and test them locally, check out and build the esy repo as such:
+
+```
+git clone git@github.com:jordwalke/esy.git
+cd esy
+npm install
+git submodule init
+git submodule update
+make build convert-opam-packages
+```
+
+Then you may "point" to that built version of esy by simply referencing its path.
+
+```
+/path/to/esy/bin/esy build
+```
+
+# Yarn
+
+**Fast:** Yarn caches every package it downloads so it never needs to download the same package again. It also parallelizes operations to maximize resource utilization so install times are faster than ever.
+
+**Reliable:** Using a detailed, concise lockfile format and a deterministic algorithm for installs, Yarn is able to guarantee that an install that worked on one system will work exactly the same way on any other system.
 
 **Secure:** Yarn uses checksums to verify the integrity of every installed package before its code is executed.
 
 ## Features
 
-* **Offline Mode.** If you've installed a package before, then you can install it again without an internet connection.
-* **Deterministic.** The same dependencies will be installed in the same exact way on any machine, regardless of installation order.
-* **Network Performance.** Yarn efficiently queues requests and avoids request waterfalls in order to maximize network utilization.
-* **Network Resilience.** A single request that fails will not cause the entire installation to fail. Requests are automatically retried upon failure.
+* **Offline Mode.** If you've installed a package before, you can install it again without any internet connection.
+* **Deterministic.** The same dependencies will be installed in the same exact way on any machine, regardless of install order.
+* **Network Performance.** Yarn efficiently queues up requests and avoids request waterfalls in order to maximize network utilization.
+* **Network Resilience.** A single request failing won't cause an install to fail. Requests are retried upon failure.
 * **Flat Mode.** Yarn resolves mismatched versions of dependencies to a single version to avoid creating duplicates.
 * **More emojis.** 🐈
 
@@ -42,7 +67,7 @@ Read the [Usage Guide](https://yarnpkg.com/en/docs/usage) on our website for det
 
 ## Contributing to Yarn
 
-Contributions are always welcome, no matter how large or small. Substantial feature requests should be proposed as an [RFC](https://github.com/yarnpkg/rfcs). Before contributing, please read the [code of conduct](CODE_OF_CONDUCT.md).
+Contributions are always welcome, no matter how large or small. Before contributing, please read the [code of conduct](CODE_OF_CONDUCT.md).
 
 See [Contributing](CONTRIBUTING.md).
 

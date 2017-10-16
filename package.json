@@ -1,5 +1,5 @@
 {
-  "name": "esy",
+  "name": "esy-install",
   "installationMethod": "unknown",
   "version": "1.2.1",
   "license": "BSD-2-Clause",
@@ -101,9 +101,9 @@
   "engines": {
     "node": ">=4.0.0"
   },
-  "repository": "yarnpkg/yarn",
+  "repository": "esy-ocaml/esy-install",
   "bin": {
-    "esy": "./bin/esy"
+    "esy-install": "./bin/yarn"
   },
   "scripts": {
     "build": "gulp build",

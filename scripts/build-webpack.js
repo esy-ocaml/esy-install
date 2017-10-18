@@ -17,6 +17,16 @@ const nodeOptions = {
   __dirname: false,
 };
 
+// We need to exclude @esy-opam/esy-ocaml bundle b/c of lincesing concerns.
+// Note that we also need both commonjs and commonjs2 configurations due to a
+// bug in webpack.
+const externals =  {
+  '@esy-ocaml/esy-opam': {
+    commonjs: '@esy-ocaml/esy-opam',
+    commonjs2: '@esy-ocaml/esy-opam',
+  }
+};
+
 //
 // Modern build
 //
@@ -47,6 +57,7 @@ const compiler = webpack({
     path: basedir,
     libraryTarget: 'commonjs2',
   },
+  externals: externals,
   target: 'node',
   node: nodeOptions,
 });
@@ -85,6 +96,7 @@ const compilerLegacy = webpack({
     path: path.join(basedir, 'artifacts'),
     libraryTarget: 'commonjs2',
   },
+  externals: externals,
   target: 'node',
   node: nodeOptions,
 });

@@ -203,7 +203,7 @@ async function applyPatches(dest, patches) {
   for (const patch of patches) {
     const patchFilename = path.join(dest, patch.name);
     await fs.writeFile(patchFilename, patch.content, { encoding: "utf8" });
-    await child.exec("patch -p1 < _esy_patch", {
+    await child.exec(`patch -p1 < ${patchFilename}`, {
       cwd: dest,
       shell: "/bin/bash"
     });

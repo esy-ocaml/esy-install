@@ -28,7 +28,9 @@ export async function getManifestCollection(
 ) {
   const packageDir = path.join(repository, "packages", packageName);
   if (!await fs.exists(packageDir)) {
-    throw new Error(`No package found: @${OPAM_SCOPE}/${packageName}`);
+    throw new Error(
+      `No package found in opam repository: @${OPAM_SCOPE}/${packageName}`
+    );
   }
 
   const manifestCollection = await convertOpamToManifestCollection(

@@ -9,7 +9,7 @@ build-release: build-bundle
 	@mkdir -p $(RELEASE_ROOT)
 	@mkdir -p $(RELEASE_ROOT)/bin
 	@cp ./bin/esy-install $(RELEASE_ROOT)/bin/esy-install
-	@cp ./artifacts/yarn-$(VERSION).js $(RELEASE_ROOT)/bin/yarn.js
+	@cp ./artifacts/yarn-$(VERSION).js $(RELEASE_ROOT)/bin/esy-install.js
 	@node ./scripts/generate-esy-install-package-json.js > $(RELEASE_ROOT)/package.json
 	@echo "Package is ready 'packages/esy-install' directory, you can run 'make publish' to publish it"
 

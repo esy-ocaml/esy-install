@@ -28,6 +28,7 @@ export type LockManifest = {
   uid: string,
   permissions: ?{[key: string]: boolean},
   optionalDependencies: ?Dependencies,
+  peerDependencies: ?Dependencies,
   dependencies: ?Dependencies,
 };
 
@@ -68,6 +69,7 @@ export function implodeEntry(pattern: string, obj: Object): MinimalLockManifest 
     registry: obj.registry === 'npm' ? undefined : obj.registry,
     dependencies: blankObjectUndefined(obj.dependencies),
     optionalDependencies: blankObjectUndefined(obj.optionalDependencies),
+    peerDependencies: blankObjectUndefined(obj.peerDependencies),
     permissions: blankObjectUndefined(obj.permissions),
   };
 }

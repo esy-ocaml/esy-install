@@ -515,12 +515,13 @@ export default class PackageResolver {
         typeof Resolver.isLockfileEntryOutdated === 'function'
       ) ? Resolver.isLockfileEntryOutdated : null;
 
-      if (
-        exoticIsLockfileEntryOutdated &&
-        exoticIsLockfileEntryOutdated(lockfileEntry.version, range, hasVersion) ||
-        !exoticIsLockfileEntryOutdated &&
-        this.isLockfileEntryOutdated(lockfileEntry.version, range, hasVersion)
-      ) {
+      if (exoticIsLockfileEntryOutdated != null) {
+        if (exoticIsLockfileEntryOutdated(this, lockfileEntry, range, hasVersion)) {
+          this.removePattern(req.pattern);
+          this.lockfile.removePattern(req.pattern);
+          fresh = true;
+        }
+      } else if ( this.isLockfileEntryOutdated(lockfileEntry.version, range, hasVersion)) {
         this.reporter.warn(this.reporter.lang('incorrectLockfileEntry', req.pattern));
         this.removePattern(req.pattern);
         this.lockfile.removePattern(req.pattern);

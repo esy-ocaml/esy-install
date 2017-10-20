@@ -15,6 +15,7 @@ build-release: build-bundle
 
 publish: build-release
 	@(cd $(RELEASE_ROOT) && npm publish --access public)
+	@git push && git push --tags
 
 bump-patch-version:
 	@npm version patch

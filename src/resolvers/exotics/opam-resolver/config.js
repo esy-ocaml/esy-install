@@ -1,6 +1,6 @@
 /* @flow */
 
-export const OPAM_SCOPE = 'opam-alpha';
+export const OPAM_SCOPE = 'opam';
 
 export const OPAM_REPOSITORY = process.env.ESY_OPAM_REPOSITORY
   ? process.env.ESY_OPAM_REPOSITORY

@@ -4,6 +4,7 @@ const path = require('path');
 const EsyOpam = require('@esy-ocaml/esy-opam');
 
 import type Config from '../../../config';
+import * as crypto from '../../../util/crypto.js';
 import * as fs from '../../../util/fs.js';
 import {cloneOrUpdateRepository} from './util.js';
 import {OPAM_REPOSITORY, OPAM_SCOPE} from './config.js';
@@ -71,6 +72,7 @@ async function convertOpamToManifest(repository, name, spec, packageDir) {
   let manifest: OpamManifest = (EsyOpam.renderOpam(name, version, opamFile): any);
   normalizeManifest(manifest);
   manifest = OpamRepositoryOverride.applyOverride(repository.override, manifest);
+  manifest._uid = crypto.hash(JSON.stringify(manifest));
 
   const urlFilename = path.join(packageDir, spec, 'url');
   if (!await fs.exists(urlFilename)) {
@@ -123,5 +125,4 @@ function normalizeManifest(manifest) {
   manifest.opam.checksum = manifest.opam.checksum || null;
   manifest.opam.files = manifest.opam.files || [];
   manifest.opam.patches = manifest.opam.patches || [];
-  manifest._uid = manifest.opam.checksum || manifest.version;
 }

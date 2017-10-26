@@ -4,7 +4,6 @@ const path = require('path');
 const invariant = require('invariant');
 const semver = require('semver');
 const EsyOpam = require('@esy-ocaml/esy-opam');
-const crypto = require('crypto');
 const yaml = require('js-yaml');
 
 import type {OpamManifest} from './index.js';
@@ -58,9 +57,6 @@ export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamM
     return manifest;
   }
 
-  const hasher = crypto.createHash('sha512');
-  hasher.update(manifest._uid);
-
   for (const [versionRange, override] of packageOverrides.entries()) {
     if (semver.satisfies(stripVersionPrelease(manifest.version), versionRange)) {
       manifest = {...manifest};
@@ -86,12 +82,8 @@ export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamM
         ...manifest.peerDependencies,
         ...override.peerDependencies,
       };
-
-      hasher.update(JSON.stringify(override));
     }
   }
-
-  manifest._uid = hasher.digest('hex');
 
   return manifest;
 }

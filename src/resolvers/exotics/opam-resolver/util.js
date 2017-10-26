@@ -1,16 +1,16 @@
 /* @flow */
 
-const invariant = require("invariant");
-const path = require("path");
-const semver = require("semver");
+const invariant = require('invariant');
+const path = require('path');
+const semver = require('semver');
 
-import * as fs from "../../../util/fs.js";
-import * as child from "../../../util/child.js";
+import * as fs from '../../../util/fs.js';
+import * as child from '../../../util/child.js';
 
 export async function cloneOrUpdateRepository(
   remotePath: string,
   checkoutPath: string,
-  params?: { onClone?: () => void, onUpdate?: () => void } = {}
+  params?: {onClone?: () => void, onUpdate?: () => void} = {},
 ) {
   if (await fs.exists(checkoutPath)) {
     const localCommit = await gitReadMaster(checkoutPath);
@@ -20,8 +20,8 @@ export async function cloneOrUpdateRepository(
         params.onUpdate();
       }
       // TODO: this could be done more efficiently
-      await child.spawn("git", ["pull", "-f", remotePath, "master"], {
-        cwd: checkoutPath
+      await child.spawn('git', ['pull', '-f', remotePath, 'master'], {
+        cwd: checkoutPath,
       });
     }
   } else {
@@ -29,18 +29,13 @@ export async function cloneOrUpdateRepository(
       params.onClone();
     }
     // TODO: this could be done more efficiently
-    await child.spawn("git", ["clone", remotePath, checkoutPath]);
+    await child.spawn('git', ['clone', '--depth', '5', remotePath, checkoutPath]);
   }
 }
 
 export async function gitReadMaster(repo: string) {
-  const data = await child.spawn("git", [
-    "ls-remote",
-    repo,
-    "-r",
-    "heads/master"
-  ]);
-  const [commitId] = data.split("\t");
+  const data = await child.spawn('git', ['ls-remote', repo, '-r', 'heads/master']);
+  const [commitId] = data.split('\t');
   return commitId.trim();
 }
 

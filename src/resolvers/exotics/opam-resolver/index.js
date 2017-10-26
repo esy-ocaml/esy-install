@@ -86,7 +86,9 @@ export default class OpamResolver extends ExoticResolver {
         [lockfileEntry.version]: lockfileEntry,
       },
     };
-    const isOutdated = !!(
+    const isOutdated = !!// TODO: issue warning here
+    (
+      !isValidReference(lockfileEntry.resolved) ||
       chooseVersion(lockfileEntry.name, manifestCollection, {
         versionRange,
         ocamlVersion,
@@ -237,6 +239,15 @@ type OpamPackageReference = {
   version: string,
   uid: string,
 };
+
+function isValidReference(resolution: string) {
+  try {
+    parseReference(resolution);
+  } catch (err) {
+    return false;
+  }
+  return true;
+}
 
 export function parseReference(resolution: string): OpamPackageReference {
   let value = resolution;

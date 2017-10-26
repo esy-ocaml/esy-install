@@ -4,94 +4,86 @@
 
 import type {FetchedOverride} from '../types.js';
 
-import invariant from 'invariant';
-import * as url from 'url';
+const nodeCrypto = require('crypto');
+import * as nodeFs from 'fs';
+import * as zlib from 'zlib';
 import * as path from 'path';
 import * as http from 'http';
+import * as tarFs from 'tar-fs';
+import gunzip from 'gunzip-maybe';
+import invariant from 'invariant';
 
 import {SecurityError} from '../errors.js';
 import type {OpamManifest} from '../resolvers/exotics/opam-resolver';
-import {lookupManifest} from '../resolvers/exotics/opam-resolver';
-import BaseFetcher from '../fetchers/base-fetcher.js';
+import {lookupManifest, parseReference} from '../resolvers/exotics/opam-resolver';
+import TarballFetcher from '../fetchers/tarball-fetcher.js';
 import * as constants from '../constants.js';
 import * as fs from '../util/fs.js';
 import * as child from '../util/child.js';
-import * as nodeFs from 'fs';
-const nodeCrypto = require('crypto');
 import DecompressZip from 'decompress-zip';
 
-export default class OpamFetcher extends BaseFetcher {
-  /**
-   * This method is being called by `PackageFetcher`.
-   */
-
-  async setupMirrorFromCache(): Promise<?string> {
-    const tarballMirrorPath = this.getTarballMirrorPath();
-    const tarballCachePath = this.getTarballCachePath();
-
-    if (tarballMirrorPath == null) {
-      return;
-    }
-
-    if (!await fs.exists(tarballMirrorPath) && (await fs.exists(tarballCachePath))) {
-      // The tarball doesn't exists in the offline cache but does in the cache; we import it to the mirror
-      await fs.mkdirp(path.dirname(tarballMirrorPath));
-      await fs.copy(tarballCachePath, tarballMirrorPath, this.reporter);
-    }
-  }
-
-  getTarballCachePath(): string {
-    return path.join(this.dest, constants.TARBALL_FILENAME);
-  }
-
+export default class OpamFetcher extends TarballFetcher {
   getTarballMirrorPath(): ?string {
-    const {pathname} = url.parse(this.reference);
-
-    if (pathname == null) {
-      return null;
-    }
-
-    // handle scoped packages
-    const pathParts = pathname.replace(/^\//, '').split(/\//g);
-
-    const packageFilename =
-      pathParts.length >= 2 && pathParts[0][0] === '@'
-        ? `${pathParts[0]}-${pathParts[pathParts.length - 1]}` // scopped
-        : `${pathParts[pathParts.length - 1]}`;
-
-    return this.config.getOfflineMirrorPath(packageFilename);
+    const filename = this.getTarballFilename();
+    return this.config.getOfflineMirrorPath(filename);
   }
 
-  async _fetch(): Promise<FetchedOverride> {
-    return this._fetchRemote();
+  getTarballFilename(): string {
+    const reference = parseReference(this.remote.reference);
+    const filename =
+      reference.scope != null
+        ? `@${reference.scope}-${reference.name}@${reference.version}-${reference.uid}.tgz`
+        : `${reference.name}@${reference.version}-${reference.uid}.tgz`;
+    return filename;
   }
 
-  async _fetchRemote(): Promise<FetchedOverride> {
-    const {dest} = this;
-    const reference = parseOpamPackageReference(this.remote.resolved);
+  async fetchFromExternal(): Promise<FetchedOverride> {
+    console.log('fetchFromExternal', this.reference);
+    const {dest: destPath} = this;
+    const reference = parseReference(this.remote.reference);
     const manifest = await lookupManifest(reference.name, reference.version, this.config);
     let hash = this.hash || '';
 
+    const tempPath = await fs.makeTempDir('esy-install');
+
+    // If we have an URL to fetch we fetch & extract it in staging dir
     const {url, checksum} = manifest.opam;
     if (url != null) {
-      const tarballStorePath = path.join(dest, constants.TARBALL_FILENAME);
       const tarballFormat = getTarballFormatFromFilename(url);
-      hash = await this._fetchTarball(url, checksum, tarballStorePath);
-      await unpackTarball(tarballStorePath, dest, tarballFormat);
+      const opamTarballPath = path.join(tempPath, 'opam-tarball.tgz');
+      hash = await this.fetchOpamTarball(url, checksum, opamTarballPath);
+      await unpackOpamTarball(opamTarballPath, tempPath, tarballFormat);
+      await fs.unlink(opamTarballPath);
     }
 
-    // opam tarballs don't have package.json (obviously) so we put it there
-    await writeJson(path.join(dest, 'package.json'), manifest);
+    // Create missing pieces from opam metadata
+    await writeJson(path.join(tempPath, 'package.json'), manifest);
+    await writeFiles(tempPath, manifest.opam.files);
+    await applyPatches(tempPath, manifest.opam.patches);
 
-    await writeFiles(dest, manifest.opam.files);
-    await applyPatches(dest, manifest.opam.patches);
+    // Now we pack into a standard tarball format (standard means npm/yarn
+    // understands it)
+    const tempTarballPath = this.config.getTemp(this.getTarballFilename());
+    await packDirectory(tempPath, tempTarballPath);
 
-    // TODO: what should we done here?
+    // Put tarball into cache dir & unpack it there
+    await fs.mkdirp(destPath);
+    const destTarballPath = path.join(destPath, constants.TARBALL_FILENAME);
+    await fs.rename(tempTarballPath, destTarballPath);
+    await unpackTarball(destTarballPath, destPath);
+
+    // Copy to offline mirror if needed
+    const tarballMirrorPath = this.getTarballMirrorPath();
+    console.log('tarballMirrorPath', this.reference, tarballMirrorPath);
+    if (tarballMirrorPath != null) {
+      await fs.copy(destTarballPath, tarballMirrorPath, this.reporter);
+    }
+
     const fetchOverride = {hash, resolved: null};
     return fetchOverride;
   }
 
-  _fetchTarball(url: string, checksum: ?string, filename: string): Promise<string> {
+  fetchOpamTarball(url: string, checksum: ?string, filename: string): Promise<string> {
     const registry = this.config.registries[this.registry];
     return registry.request(url, {
       headers: {
@@ -159,20 +151,20 @@ function writeJson(filename, object): Promise<void> {
   return fs.writeFile(filename, data, {encoding: 'utf8'});
 }
 
-function unpackTarball(
+function unpackOpamTarball(
   filename,
   dest,
   format: 'gzip' | 'bzip' | 'zip' | 'xz',
 ): Promise<void> {
   if (format === 'zip') {
-    return extractZipIntoDirectory(filename, dest, {strip: 1});
+    return extractZip(filename, dest, {strip: 1});
   } else {
     const unpackOptions = format === 'gzip' ? '-xzf' : format === 'xz' ? '-xJf' : '-xjf';
     return child.exec(`tar ${unpackOptions} ${filename} --strip-components 1 -C ${dest}`);
   }
 }
 
-function extractZipIntoDirectory(filename, dest, options): Promise<void> {
+function extractZip(filename, dest, options): Promise<void> {
   let seenError = false;
   return new Promise((resolve, reject) => {
     const unzipper = new DecompressZip(filename);
@@ -239,39 +231,55 @@ async function applyPatches(dest, patches) {
   }
 }
 
-type OpamPackageReference = {
-  name: string,
-  version: string,
-  uid: string,
-};
+function packDirectory(directory, tarballPath) {
+  return new Promise((resolve, reject) => {
+    tarFs
+      .pack(directory, {
+        map: header => {
+          const suffix = header.name === '.' ? '' : `/${header.name}`;
+          header.name = `package${suffix}`;
+          delete header.uid;
+          delete header.gid;
+          return header;
+        },
+      })
+      .on('error', onStreamError(reject, `packing ${tarballPath}`))
+      .pipe(new zlib.Gzip())
+      .on('error', onStreamError(reject, `compressing ${tarballPath}`))
+      .pipe(nodeFs.createWriteStream(tarballPath))
+      .on('error', onStreamError(reject, `writing tarball ${tarballPath}`))
+      .on('finish', () => {
+        resolve();
+      });
+  });
+}
 
-function parseOpamPackageReference(reference: string): OpamPackageReference {
-  let value = reference;
-  let idx = -1;
+function unpackTarball(tarballPath, directory) {
+  return new Promise((resolve, reject) => {
+    const inputStream = nodeFs.createReadStream(tarballPath);
+    const extractorStream = gunzip();
+    const untarStream = tarFs.extract(directory, {
+      strip: 1,
+      dmode: 0o755, // all dirs should be readable
+      fmode: 0o644, // all files should be readable
+      chown: false, // don't chown. just leave as it is
+    });
 
-  // skip scope, it's hardcoded now
-  if (value[0] === '@') {
-    idx = value.indexOf('/');
-    invariant(
-      idx > -1,
-      'Malformed opam package reference: %s (at "%s")',
-      reference,
-      value,
-    );
-    value = value.slice(idx + 1);
-  }
+    inputStream
+      .on('error', onStreamError(reject, `reading ${tarballPath}`))
+      .pipe(extractorStream)
+      .on('error', onStreamError(reject, `decompressing ${tarballPath}`))
+      .pipe(untarStream)
+      .on('error', onStreamError(reject, `unpacking ${tarballPath}`))
+      .on('finish', () => {
+        resolve();
+      });
+  });
+}
 
-  idx = value.indexOf('@');
-  invariant(idx > -1, 'Malformed opam package reference: %s (at "%s")', reference, value);
-  const name = value.slice(0, idx);
-  value = value.slice(idx + 1);
-
-  idx = value.indexOf('#');
-  invariant(idx > -1, 'Malformed opam package reference: %s (at "%s")', reference, value);
-  const version = value.slice(0, idx);
-  value = value.slice(idx + 1);
-
-  const uid = value;
-
-  return {name, version, uid};
+function onStreamError(reject, state) {
+  return error => {
+    error.message = `${error.message} (${state})`;
+    reject(error);
+  };
 }

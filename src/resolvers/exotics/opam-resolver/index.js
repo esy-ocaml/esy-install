@@ -55,7 +55,7 @@ export default class OpamResolver extends ExoticResolver {
   constructor(request: PackageRequest, fragment: string) {
     super(request, fragment);
 
-    const {name, version} = parseResolution(fragment);
+    const {name, version} = parseFragment(fragment);
     this.name = name;
     this.version = version;
   }
@@ -106,14 +106,18 @@ export default class OpamResolver extends ExoticResolver {
     }
 
     let manifest = await this.resolveManifest();
-    const reference = `${manifest.name}@${manifest.version}#${manifest._uid}`;
+
+    // This is crafted to be compatible with how yarn stores tarballs for
+    // packages in offline mirror. Also function below called parseReference()
+    // parses this representation.
+    const resolved = `${manifest.name}@${manifest.version}-${manifest._uid}.tgz`;
 
     manifest._remote = {
       type: 'opam',
       registry: 'npm',
       hash: manifest.opam.checksum,
-      reference,
-      resolved: reference,
+      reference: resolved,
+      resolved,
     };
 
     return manifest;
@@ -144,15 +148,6 @@ export default class OpamResolver extends ExoticResolver {
     const manifest = manifestCollection.versions[version];
     return manifest;
   }
-}
-
-export function parseResolution(fragment: string): {name: string, version: string} {
-  fragment = fragment.slice(`@${OPAM_SCOPE}/`.length);
-  const [name, version = '*'] = fragment.split('@');
-  return {
-    name,
-    version,
-  };
 }
 
 export async function lookupManifest(
@@ -233,4 +228,76 @@ function dependencyNotFoundErrorMessage(req: PackageRequest) {
     msg = msg + ` (dependency path: ${parentNames.join(' -> ')})`;
   }
   return msg;
+}
+
+type OpamPackageReference = {
+  fullName: string,
+  name: string,
+  scope: ?string,
+  version: string,
+  uid: string,
+};
+
+export function parseReference(resolution: string): OpamPackageReference {
+  let value = resolution;
+  let idx = -1;
+
+  let scope = null;
+  if (value[0] === '@') {
+    idx = value.indexOf('/');
+    invariant(
+      idx > -1,
+      'Malformed opam package resolution: %s (at "%s")',
+      resolution,
+      value,
+    );
+    scope = value.slice(1, idx);
+    value = value.slice(idx + 1);
+  }
+
+  idx = value.indexOf('@');
+  invariant(
+    idx > -1,
+    'Malformed opam package resolution: %s (at "%s")',
+    resolution,
+    value,
+  );
+  const name = value.slice(0, idx);
+  value = value.slice(idx + 1);
+
+  idx = value.lastIndexOf('-');
+  invariant(
+    idx > -1,
+    'Malformed opam package resolution: %s (at "%s")',
+    resolution,
+    value,
+  );
+  const version = value.slice(0, idx);
+  value = value.slice(idx + 1);
+
+  idx = value.indexOf('.tgz');
+  invariant(
+    idx > -1,
+    'Malformed opam package resolution: %s (at "%s")',
+    resolution,
+    value,
+  );
+  const uid = value.slice(0, idx);
+
+  return {
+    name,
+    fullName: scope != null ? `@${scope}/${name}` : name,
+    scope,
+    version,
+    uid,
+  };
+}
+
+export function parseFragment(fragment: string): {name: string, version: string} {
+  fragment = fragment.slice(`@${OPAM_SCOPE}/`.length);
+  const [name, version = '*'] = fragment.split('@');
+  return {
+    name,
+    version,
+  };
 }

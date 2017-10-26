@@ -52,16 +52,12 @@ export default class OpamResolver extends ExoticResolver {
   name: string;
   version: string;
 
-  _updatingRepository: ?Promise<void>;
-
   constructor(request: PackageRequest, fragment: string) {
     super(request, fragment);
 
     const {name, version} = parseResolution(fragment);
     this.name = name;
     this.version = version;
-
-    this._updatingRepository = null;
   }
 
   static isVersion(pattern: string): boolean {

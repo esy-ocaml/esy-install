@@ -106,7 +106,7 @@ export default class OpamResolver extends ExoticResolver {
     }
 
     let manifest = await this.resolveManifest();
-    const reference = `${manifest.name}@${manifest.version}`;
+    const reference = `${manifest.name}@${manifest.version}#${manifest._uid}`;
 
     manifest._remote = {
       type: 'opam',

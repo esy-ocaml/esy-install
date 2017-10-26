@@ -3,11 +3,15 @@
  */
 
 import type {FetchedOverride} from '../types.js';
-import path from 'path';
-import http from 'http';
+
+import invariant from 'invariant';
+import * as url from 'url';
+import * as path from 'path';
+import * as http from 'http';
+
 import {SecurityError} from '../errors.js';
 import type {OpamManifest} from '../resolvers/exotics/opam-resolver';
-import {parseResolution, lookupManifest} from '../resolvers/exotics/opam-resolver';
+import {lookupManifest} from '../resolvers/exotics/opam-resolver';
 import BaseFetcher from '../fetchers/base-fetcher.js';
 import * as constants from '../constants.js';
 import * as fs from '../util/fs.js';
@@ -17,14 +21,55 @@ const nodeCrypto = require('crypto');
 import DecompressZip from 'decompress-zip';
 
 export default class OpamFetcher extends BaseFetcher {
+  /**
+   * This method is being called by `PackageFetcher`.
+   */
+
+  async setupMirrorFromCache(): Promise<?string> {
+    const tarballMirrorPath = this.getTarballMirrorPath();
+    const tarballCachePath = this.getTarballCachePath();
+
+    if (tarballMirrorPath == null) {
+      return;
+    }
+
+    if (!await fs.exists(tarballMirrorPath) && (await fs.exists(tarballCachePath))) {
+      // The tarball doesn't exists in the offline cache but does in the cache; we import it to the mirror
+      await fs.mkdirp(path.dirname(tarballMirrorPath));
+      await fs.copy(tarballCachePath, tarballMirrorPath, this.reporter);
+    }
+  }
+
+  getTarballCachePath(): string {
+    return path.join(this.dest, constants.TARBALL_FILENAME);
+  }
+
+  getTarballMirrorPath(): ?string {
+    const {pathname} = url.parse(this.reference);
+
+    if (pathname == null) {
+      return null;
+    }
+
+    // handle scoped packages
+    const pathParts = pathname.replace(/^\//, '').split(/\//g);
+
+    const packageFilename =
+      pathParts.length >= 2 && pathParts[0][0] === '@'
+        ? `${pathParts[0]}-${pathParts[pathParts.length - 1]}` // scopped
+        : `${pathParts[pathParts.length - 1]}`;
+
+    return this.config.getOfflineMirrorPath(packageFilename);
+  }
+
   async _fetch(): Promise<FetchedOverride> {
+    return this._fetchRemote();
+  }
+
+  async _fetchRemote(): Promise<FetchedOverride> {
     const {dest} = this;
-    const resolution = parseResolution(this.reference);
-    const manifest = await lookupManifest(
-      resolution.name,
-      resolution.version,
-      this.config,
-    );
+    const reference = parseOpamPackageReference(this.remote.resolved);
+    const manifest = await lookupManifest(reference.name, reference.version, this.config);
     let hash = this.hash || '';
 
     const {url, checksum} = manifest.opam;
@@ -192,4 +237,41 @@ async function applyPatches(dest, patches) {
     });
     await fs.unlink(patchFilename);
   }
+}
+
+type OpamPackageReference = {
+  name: string,
+  version: string,
+  uid: string,
+};
+
+function parseOpamPackageReference(reference: string): OpamPackageReference {
+  let value = reference;
+  let idx = -1;
+
+  // skip scope, it's hardcoded now
+  if (value[0] === '@') {
+    idx = value.indexOf('/');
+    invariant(
+      idx > -1,
+      'Malformed opam package reference: %s (at "%s")',
+      reference,
+      value,
+    );
+    value = value.slice(idx + 1);
+  }
+
+  idx = value.indexOf('@');
+  invariant(idx > -1, 'Malformed opam package reference: %s (at "%s")', reference, value);
+  const name = value.slice(0, idx);
+  value = value.slice(idx + 1);
+
+  idx = value.indexOf('#');
+  invariant(idx > -1, 'Malformed opam package reference: %s (at "%s")', reference, value);
+  const version = value.slice(0, idx);
+  value = value.slice(idx + 1);
+
+  const uid = value;
+
+  return {name, version, uid};
 }

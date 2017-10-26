@@ -38,7 +38,6 @@ export default class OpamFetcher extends TarballFetcher {
   }
 
   async fetchFromExternal(): Promise<FetchedOverride> {
-    console.log('fetchFromExternal', this.reference);
     const {dest: destPath} = this;
     const reference = parseReference(this.remote.reference);
     const manifest = await lookupManifest(reference.name, reference.version, this.config);
@@ -74,7 +73,6 @@ export default class OpamFetcher extends TarballFetcher {
 
     // Copy to offline mirror if needed
     const tarballMirrorPath = this.getTarballMirrorPath();
-    console.log('tarballMirrorPath', this.reference, tarballMirrorPath);
     if (tarballMirrorPath != null) {
       await fs.copy(destTarballPath, tarballMirrorPath, this.reporter);
     }

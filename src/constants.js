@@ -9,7 +9,12 @@ type Env = {
   [key: string]: ?string,
 };
 
-export const DEPENDENCY_TYPES = ['devDependencies', 'dependencies', 'optionalDependencies', 'peerDependencies'];
+export const DEPENDENCY_TYPES = [
+  'devDependencies',
+  'dependencies',
+  'optionalDependencies',
+  'peerDependencies',
+];
 
 export const SUPPORTED_NODE_VERSIONS = '^4.8.0 || ^5.7.0 || ^6.2.2 || ^8.0.0';
 
@@ -89,7 +94,7 @@ export const FALLBACK_GLOBAL_PREFIX = path.join(userHome, '.yarn');
 
 export const META_FOLDER = '.yarn-meta';
 export const INTEGRITY_FILENAME = '.yarn-integrity';
-export const LOCKFILE_FILENAME = 'yarn.lock';
+export const LOCKFILE_FILENAME = 'esy.lock';
 export const METADATA_FILENAME = '.yarn-metadata.json';
 export const TARBALL_FILENAME = '.yarn-tarball.tgz';
 export const CLEAN_FILENAME = '.yarnclean';

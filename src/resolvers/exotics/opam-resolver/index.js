@@ -68,7 +68,7 @@ export default class OpamResolver extends ExoticResolver {
     // rm leading @
     pattern = pattern[0] === '@' ? pattern.slice(1) : pattern;
     const [_name, constraint] = pattern.split('@');
-    return !!semver.validRange(constraint);
+    return constraint == null || !!semver.validRange(constraint);
   }
 
   /**

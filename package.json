@@ -1,7 +1,7 @@
 {
   "name": "@esy-ocaml/esy-install",
   "installationMethod": "unknown",
-  "version": "1.2.1007",
+  "version": "1.2.1008",
   "license": "BSD-2-Clause",
   "preferGlobal": false,
   "description": "📦🐈 Fast, reliable, and secure dependency management.",

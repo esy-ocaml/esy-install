@@ -258,23 +258,14 @@ export class Install {
     };
 
     for (const registry of Object.keys(registries)) {
-      const {filenameList} = registries[registry];
-      let locToFind;
-      for (const filename of filenameList) {
-        locToFind = path.join(cwd, filename);
-        if (await fs.exists(locToFind)) {
-          break;
-        }
+      const projectManifestJson = await this.config.tryManifest(cwd, registry, cwdIsRoot);
+      if (projectManifestJson == null) {
+        continue;
       }
-      invariant(locToFind != null, 'Cannot find manifest');
-      const loc = locToFind;
-
+      const loc: string = (projectManifestJson._loc: any);
       this.rootManifestRegistries.push(registry);
 
-      const projectManifestJson = await this.config.readJson(loc);
-      await normalizeManifest(projectManifestJson, cwd, this.config, cwdIsRoot);
-
-      Object.assign(this.resolutions, projectManifestJson.resolutions);
+      Object.assign(this.resolutions, (projectManifestJson: any).resolutions);
       Object.assign(manifest, projectManifestJson);
 
       this.resolutionMap.init(this.resolutions);

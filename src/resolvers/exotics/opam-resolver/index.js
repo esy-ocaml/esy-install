@@ -240,7 +240,10 @@ type OpamPackageReference = {
   uid: string,
 };
 
-function isValidReference(resolution: string) {
+function isValidReference(resolution: ?string) {
+  if (resolution == null) {
+    return false;
+  }
   try {
     parseReference(resolution);
   } catch (err) {

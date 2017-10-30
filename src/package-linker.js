@@ -390,9 +390,9 @@ export default class PackageLinker {
     await Promise.all(linkTasks.map(async ({remote, item: {dest}}) => {
       const manifest = await this.config.readManifest(dest);
       if (remote != null && remote.resolved != null) {
-        manifest._resolved = remote.resolved;
+        (manifest: any)._resolved = remote.resolved;
       }
-      await fs.writeJson(manifest._loc, manifest);
+      await fs.writeJson((manifest: any)._loc, manifest);
     }));
 
     // remove any empty scoped directories

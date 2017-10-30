@@ -716,21 +716,22 @@ export default class Config {
       let object = {};
       let exists = false;
       let indent;
+      let loc;
 
       for (const filename of registry.filenameList) {
-        const jsonLoc = path.join(this.cwd, filename);
+        const loc = path.join(this.cwd, filename);
 
-        if (await fs.exists(jsonLoc)) {
+        if (await fs.exists(loc)) {
           exists = true;
 
-          const info = await this.readJson(jsonLoc, readManifestAndContent);
+          const info = await this.readJson(loc, readManifestAndContent);
           object = info.object;
           indent = detectIndent(info.content).indent || undefined;
           break;
         }
 
       }
-      manifests[registryName] = {loc: jsonLoc, object, exists, indent};
+      manifests[registryName] = {loc: loc || path.join(this.cwd, 'package.json'), object, exists, indent};
     }
     return manifests;
   }

@@ -29,8 +29,10 @@ function findProjectRoot(base: string): string {
   let dir = base;
 
   do {
-    if (fs.existsSync(path.join(dir, constants.NODE_PACKAGE_JSON))) {
-      return dir;
+    for (const filename of constants.PROJECT_ROOT_MARKER) {
+      if (fs.existsSync(path.join(dir, filename))) {
+        return dir;
+      }
     }
 
     prev = dir;

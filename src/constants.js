@@ -88,6 +88,7 @@ function getYarnBinPath(): string {
 
 export const NODE_MODULES_FOLDER = 'node_modules';
 export const NODE_PACKAGE_JSON = 'package.json';
+export const PROJECT_ROOT_MARKER = ['esy.json', 'package.json'];
 
 export const POSIX_GLOBAL_PREFIX = `${process.env.DESTDIR || ''}/usr/local`;
 export const FALLBACK_GLOBAL_PREFIX = path.join(userHome, '.yarn');

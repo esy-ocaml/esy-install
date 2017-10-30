@@ -325,7 +325,7 @@ export class Install {
       pushDeps('optionalDependencies', projectManifestJson, {hint: 'optional', optional: true}, true);
 
       if (this.config.workspaceRootFolder) {
-        const workspaceLoc = cwdIsRoot ? loc : path.join(this.config.lockfileFolder, filename);
+        const workspaceLoc = cwdIsRoot ? loc : path.join(this.config.lockfileFolder, path.basename(loc));
         const workspacesRoot = path.dirname(workspaceLoc);
 
         let workspaceManifestJson = projectManifestJson;

@@ -9,6 +9,7 @@ import type {CopyQueueItem} from './util/fs.js';
 import type {InstallArtifacts} from './package-install-scripts.js';
 import PackageHoister from './package-hoister.js';
 import * as constants from './constants.js';
+import {registries} from './registries/index.js';
 import * as promise from './util/promise.js';
 import {entries} from './util/misc.js';
 import * as fs from './util/fs.js';
@@ -387,12 +388,11 @@ export default class PackageLinker {
 
     // inject PackageRemote info into installation dep tree
     await Promise.all(linkTasks.map(async ({remote, item: {dest}}) => {
-      const packageJsonFilename = path.join(dest, 'package.json');
-      const packageJson = await fs.readJson(packageJsonFilename);
+      const manifest = await this.config.readManifest(dest);
       if (remote != null && remote.resolved != null) {
-        packageJson._resolved = remote.resolved;
+        manifest._resolved = remote.resolved;
       }
-      await fs.writeJson(packageJsonFilename, packageJson);
+      await fs.writeJson(manifest._loc, manifest);
     }));
 
     // remove any empty scoped directories

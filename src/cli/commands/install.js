@@ -262,8 +262,8 @@ export class Install {
       let locToFind;
       for (const filename of filenameList) {
         locToFind = path.join(cwd, filename);
-        if (!await fs.exists(locToFind)) {
-          continue;
+        if (await fs.exists(locToFind)) {
+          break;
         }
       }
       invariant(locToFind != null, 'Cannot find manifest');

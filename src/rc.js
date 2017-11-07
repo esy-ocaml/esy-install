@@ -12,7 +12,7 @@ const PATH_KEYS = new Set(['yarn-path', 'cache-folder', 'global-folder', 'module
 
 // given a cwd, load all .yarnrc files relative to it
 export function getRcConfigForCwd(cwd: string): {[key: string]: string} {
-  return rcUtil.findRc('yarn', cwd, (fileText, filePath) => {
+  return rcUtil.findRc('esy', cwd, (fileText, filePath) => {
     const {object: values} = parse(fileText, 'yarnrc');
 
     // some keys reference directories so keep their relativity

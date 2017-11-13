@@ -719,7 +719,7 @@ export default class Config {
       let loc;
 
       for (const filename of registry.filenameList) {
-        const loc = path.join(this.cwd, filename);
+        loc = path.join(this.cwd, filename);
 
         if (await fs.exists(loc)) {
           exists = true;

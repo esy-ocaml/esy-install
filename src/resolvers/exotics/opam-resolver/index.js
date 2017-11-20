@@ -83,7 +83,10 @@ export default class OpamResolver extends ExoticResolver {
     const ocamlVersion = resolver.ocamlVersion;
     const manifestCollection = {
       versions: {
-        [lockfileEntry.version]: lockfileEntry,
+        [lockfileEntry.version]: {
+          ...lockfileEntry,
+          opam: {version: lockfileEntry.version},
+        },
       },
     };
     const isOutdated = !!// TODO: issue warning here
@@ -205,12 +208,13 @@ function chooseVersion<M: MinimalManifest>(
     // This is needed so `semver.satisfies()` will accept this for `*`
     // constraint.
     (v: any)._prereleaseHidden = v.prerelease;
+    v.opamVersion = manifestCollection.versions[version].opam.version;
     v.prerelease = [];
     return v;
   });
 
   (versionsParsed: any).sort((a, b) => {
-    return -1 * EsyOpam.versionCompare(a.raw, b.raw);
+    return -1 * EsyOpam.versionCompare(a.opamVersion, b.opamVersion);
   });
 
   for (let i = 0; i < versionsParsed.length; i++) {
@@ -224,12 +228,8 @@ function chooseVersion<M: MinimalManifest>(
 }
 
 function dependencyNotFoundErrorMessage(req: PackageRequest) {
-  let msg = `No compatible version found: "${req.pattern}"`;
-  const parentNames = req.parentNames.slice(0).reverse();
-  if (parentNames.length > 0) {
-    msg = msg + ` (dependency path: ${parentNames.join(' -> ')})`;
-  }
-  return msg;
+  const path = req.parentNames.concat(req.pattern).join(' > ');
+  return `${path}: no compatible version found`;
 }
 
 type OpamPackageReference = {

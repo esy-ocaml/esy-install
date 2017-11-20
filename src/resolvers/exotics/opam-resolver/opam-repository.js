@@ -72,6 +72,7 @@ async function convertOpamToManifest(repository, name, spec, packageDir) {
   let manifest: OpamManifest = (EsyOpam.renderOpam(name, version, opamFile): any);
   normalizeManifest(manifest);
   manifest = OpamRepositoryOverride.applyOverride(repository.override, manifest);
+  manifest.opam.version = version;
   manifest._uid = crypto.hash(JSON.stringify(manifest));
 
   const urlFilename = path.join(packageDir, spec, 'url');

@@ -43,7 +43,7 @@ export default class OpamFetcher extends TarballFetcher {
     const manifest = await lookupManifest(reference.name, reference.version, this.config);
     let hash = this.hash || '';
 
-    const tempPath = await fs.makeTempDir('esy-install');
+    let tempPath = await fs.makeTempDir('esy-install');
 
     // If we have an URL to fetch we fetch & extract it in staging dir
     const {url, checksum} = manifest.opam;
@@ -52,6 +52,10 @@ export default class OpamFetcher extends TarballFetcher {
       const opamTarballPath = path.join(tempPath, 'opam-tarball.tgz');
       hash = await this.fetchOpamTarball(url, checksum, opamTarballPath);
       await unpackOpamTarball(opamTarballPath, tempPath, tarballFormat);
+      const [dirname] = (await fs.readdir(tempPath)).filter(
+        name => name !== 'opam-tarball.tgz',
+      );
+      tempPath = path.join(tempPath, dirname);
       await fs.unlink(opamTarballPath);
     }
 
@@ -149,20 +153,20 @@ function writeJson(filename, object): Promise<void> {
   return fs.writeFile(filename, data, {encoding: 'utf8'});
 }
 
-function unpackOpamTarball(
+async function unpackOpamTarball(
   filename,
   dest,
   format: 'gzip' | 'bzip' | 'zip' | 'xz',
 ): Promise<void> {
   if (format === 'zip') {
-    return extractZip(filename, dest, {strip: 1});
+    await extractZip(filename, dest);
   } else {
     const unpackOptions = format === 'gzip' ? '-xzf' : format === 'xz' ? '-xJf' : '-xjf';
-    return child.exec(`tar ${unpackOptions} ${filename} --strip-components 1 -C ${dest}`);
+    await child.exec(`tar ${unpackOptions} ${filename} -C ${dest}`);
   }
 }
 
-function extractZip(filename, dest, options): Promise<void> {
+function extractZip(filename, dest): Promise<void> {
   let seenError = false;
   return new Promise((resolve, reject) => {
     const unzipper = new DecompressZip(filename);
@@ -178,7 +182,6 @@ function extractZip(filename, dest, options): Promise<void> {
     });
 
     unzipper.extract({
-      ...options,
       path: dest,
     });
   });

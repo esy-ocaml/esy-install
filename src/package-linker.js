@@ -179,7 +179,7 @@ export default class PackageLinker {
         // replace package source from incorrect cache location (workspaces and link: are not cached)
         // with a symlink source
         src = remote.reference;
-        type = 'symlink';
+        type = 'source-link';
       } else if (workspaceLayout && remote.type === 'workspace') {
         src = remote.reference;
         type = 'symlink';

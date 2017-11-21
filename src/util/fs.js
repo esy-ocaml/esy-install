@@ -144,6 +144,7 @@ type CopySymlinkAction = {
 type CopyActions = {
   file: Array<CopyFileAction>,
   symlink: Array<CopySymlinkAction>,
+  sourceLink: Array<CopySymlinkAction>,
   link: Array<LinkFileAction>,
 };
 
@@ -220,6 +221,7 @@ async function buildActionsForCopy(
   const actions: CopyActions = {
     file: [],
     symlink: [],
+    sourceLink: [],
     link: [],
   };
 
@@ -266,6 +268,15 @@ async function buildActionsForCopy(
       await mkdirp(path.dirname(dest));
       onFresh();
       actions.symlink.push({
+        dest,
+        linkname: src,
+      });
+      onDone();
+      return;
+    } else if (type === 'source-link') {
+      await mkdirp(path.dirname(dest));
+      onFresh();
+      actions.sourceLink.push({
         dest,
         linkname: src,
       });
@@ -438,6 +449,7 @@ async function buildActionsForHardlink(
   const actions: CopyActions = {
     file: [],
     symlink: [],
+    sourceLink: [],
     link: [],
   };
 
@@ -670,6 +682,22 @@ export async function copyBulk(
     },
     CONCURRENT_QUEUE_ITEMS,
   );
+
+  const sourceLinkAction: Array<CopySymlinkAction> = actions.sourceLink;
+  await promise.queue(sourceLinkAction, async (data): Promise<void> => {
+    await mkdirp(data.dest);
+
+    await writeFile(path.join(data.dest, '_esylink'), data.linkname);
+
+    const packageJson = path.join(data.linkname, 'package.json');
+    const esyJson = path.join(data.linkname, 'esy.json');
+    if (await exists(esyJson)) {
+      await symlink(esyJson, path.join(data.dest, 'esy.json'));
+    }
+    if (await exists(packageJson)) {
+      await symlink(packageJson, path.join(data.dest, 'package.json'));
+    }
+  });
 
   // we need to copy symlinks last as they could reference files we were copying
   const symlinkActions: Array<CopySymlinkAction> = actions.symlink;

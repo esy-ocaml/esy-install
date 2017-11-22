@@ -685,17 +685,20 @@ export async function copyBulk(
 
   const sourceLinkAction: Array<CopySymlinkAction> = actions.sourceLink;
   await promise.queue(sourceLinkAction, async (data): Promise<void> => {
-    await mkdirp(data.dest);
+    const {dest, linkname: origin} = data;
+    await unlink(dest);
+    await mkdirp(dest);
 
-    await writeFile(path.join(data.dest, '_esylink'), data.linkname);
+    await writeFile(path.join(dest, '_esylink'), origin);
 
-    const packageJson = path.join(data.linkname, 'package.json');
-    const esyJson = path.join(data.linkname, 'esy.json');
+    const esyJson = path.join(origin, 'esy.json');
     if (await exists(esyJson)) {
-      await symlink(esyJson, path.join(data.dest, 'esy.json'));
+      await symlink(esyJson, path.join(dest, 'esy.json'));
     }
+
+    const packageJson = path.join(origin, 'package.json');
     if (await exists(packageJson)) {
-      await symlink(packageJson, path.join(data.dest, 'package.json'));
+      await symlink(packageJson, path.join(dest, 'package.json'));
     }
   });
 

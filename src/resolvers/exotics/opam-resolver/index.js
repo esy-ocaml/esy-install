@@ -42,6 +42,7 @@ export type OpamManifest = Manifest & {
   },
   opam: {
     url: ?string,
+    version: string,
     checksum: ?string,
     files: Array<File>,
     patches: Array<Patch>,
@@ -208,6 +209,7 @@ function chooseVersion<M: MinimalManifest>(
     // This is needed so `semver.satisfies()` will accept this for `*`
     // constraint.
     (v: any)._prereleaseHidden = v.prerelease;
+    // $FlowFixMe: ...
     v.opamVersion = manifestCollection.versions[version].opam.version;
     v.prerelease = [];
     return v;

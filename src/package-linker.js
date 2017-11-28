@@ -387,13 +387,20 @@ export default class PackageLinker {
     }
 
     // inject PackageRemote info into installation dep tree
-    await Promise.all(linkTasks.map(async ({remote, item: {dest}}) => {
-      const manifest = await this.config.readManifest(dest);
-      if (remote != null && remote.resolved != null) {
-        (manifest: any)._resolved = remote.resolved;
-      }
-      await fs.writeJson((manifest: any)._loc, manifest);
-    }));
+    await Promise.all(
+      linkTasks.map(async ({remote, item: {dest}}) => {
+        const manifest = await this.config.readManifest(dest);
+        const loc = (manifest: any)._loc;
+        const locStat = await fs.lstat(loc);
+        if (locStat.isSymbolicLink()) {
+          return;
+        }
+        if (remote != null && remote.resolved != null) {
+          (manifest: any)._resolved = remote.resolved;
+        }
+        await fs.writeJson(loc, manifest);
+      }),
+    );
 
     // remove any empty scoped directories
     for (const scopedPath of scopedPaths) {

@@ -92,12 +92,14 @@ async function convertOpamToManifest(repository, name, spec, packageDir) {
 
   const patchFilenames: Array<string> = (manifest: any)._esy_opam_patches;
   if (patchFilenames) {
-    manifest.opam.patches = await Promise.all(
-      patchFilenames.map(async basename => {
-        const filename = path.join(packageDir, spec, 'files', basename);
-        const content = await fs.readFile(filename);
-        return {name: basename, content};
-      }),
+    manifest.opam.patches = manifest.opam.patches.concat(
+      await Promise.all(
+        patchFilenames.map(async basename => {
+          const filename = path.join(packageDir, spec, 'files', basename);
+          const content = await fs.readFile(filename);
+          return {name: basename, content};
+        }),
+      ),
     );
   }
 

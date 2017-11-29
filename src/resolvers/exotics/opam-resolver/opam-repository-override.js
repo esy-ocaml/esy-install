@@ -24,6 +24,7 @@ export type OpamRepositoryOverride = {
 
 export type OpamPackageOverride = {
   build?: Array<Array<string>>,
+  install?: Array<Array<string>>,
   dependencies?: {[name: string]: string},
   peerDependencies?: {[name: string]: string},
   exportedEnv: {
@@ -31,6 +32,7 @@ export type OpamPackageOverride = {
   },
   opam: {
     files: Array<{name: string, content: string}>,
+    patches: Array<{name: string, content: string}>,
   },
 };
 
@@ -65,6 +67,7 @@ export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamM
       manifest.esy = {
         ...esy,
         build: override.build || esy.build,
+        install: override.install || esy.install,
         exportedEnv: {
           ...esy.exportedEnv,
           ...override.exportedEnv,
@@ -73,6 +76,7 @@ export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamM
       manifest.opam = {
         ...opam,
         files: opam.files.concat(override.opam.files),
+        patches: opam.patches.concat(override.opam.patches),
       };
       manifest.dependencies = {
         ...manifest.dependencies,
@@ -144,6 +148,7 @@ function normalizeOverride(override) {
   override.exportedEnv = override.exportedEnv || {};
   override.opam = override.opam || {};
   override.opam.files = override.opam.files || [];
+  override.opam.patches = override.opam.patches || [];
 }
 
 const mkMap = () => new Map();

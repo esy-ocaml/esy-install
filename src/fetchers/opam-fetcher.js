@@ -224,11 +224,14 @@ async function applyPatches(dest, patches) {
   for (const patch of patches) {
     const patchFilename = path.join(dest, patch.name);
     await fs.writeFile(patchFilename, patch.content, {encoding: 'utf8'});
-    await child.exec(`patch -p1 < ${patchFilename}`, {
-      cwd: dest,
-      shell: '/bin/bash',
-    });
-    await fs.unlink(patchFilename);
+    try {
+      await child.exec(`bash -c "patch -p1 < ${patchFilename}"`, {
+        cwd: dest,
+        stdio: 'inherit',
+      });
+    } finally {
+      await fs.unlink(patchFilename);
+    }
   }
 }
 

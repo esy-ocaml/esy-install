@@ -38,6 +38,7 @@ type Patch = {
 export type OpamManifest = Manifest & {
   esy: {
     build: string | Array<string> | Array<Array<string>>,
+    install: string | Array<string> | Array<Array<string>>,
     exportedEnv: {[name: string]: {val: string, scope?: 'global'}},
   },
   opam: {
@@ -133,7 +134,6 @@ export default class OpamResolver extends ExoticResolver {
     const versionRange: string =
       this.version == null || this.version === 'latest' ? '*' : this.version;
 
-    const overrides = await OpamRepositoryOverride.init(this.config);
     const repository = await OpamRepository.init(this.config);
 
     const manifestCollection = await OpamRepository.getManifestCollection(

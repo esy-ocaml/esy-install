@@ -76,34 +76,52 @@ async function convertOpamToManifest(repository, name, spec, packageDir) {
   manifest._uid = crypto.hash(JSON.stringify(manifest));
 
   const urlFilename = path.join(packageDir, spec, 'url');
-  if (!await fs.exists(urlFilename)) {
-    return manifest;
+
+  if (await fs.exists(urlFilename)) {
+    const urlData = await fs.readFile(urlFilename);
+    if (urlData != null) {
+      const opamUrl = EsyOpam.parseOpamUrl(urlData);
+      const url = EsyOpam.renderOpamUrl(opamUrl);
+      let checksum = url.checksum.filter(h => h.kind === 'md5')[0];
+      checksum = checksum ? checksum.contents : null;
+      manifest.opam.url = url.url;
+      manifest.opam.checksum = checksum;
+    }
+
+    const patchFilenames: Array<string> = (manifest: any)._esy_opam_patches;
+    if (patchFilenames) {
+      manifest.opam.patches = manifest.opam.patches.concat(
+        await Promise.all(
+          patchFilenames.map(async basename => {
+            const filename = path.join(packageDir, spec, 'files', basename);
+            const content = await fs.readFile(filename);
+            return {name: basename, content};
+          }),
+        ),
+      );
+    }
   }
 
-  const urlData = await fs.readFile(urlFilename);
-  if (urlData != null) {
-    const opamUrl = EsyOpam.parseOpamUrl(urlData);
-    const url = EsyOpam.renderOpamUrl(opamUrl);
-    let checksum = url.checksum.filter(h => h.kind === 'md5')[0];
-    checksum = checksum ? checksum.contents : null;
-    manifest.opam.url = url.url;
-    manifest.opam.checksum = checksum;
-  }
-
-  const patchFilenames: Array<string> = (manifest: any)._esy_opam_patches;
-  if (patchFilenames) {
-    manifest.opam.patches = manifest.opam.patches.concat(
-      await Promise.all(
-        patchFilenames.map(async basename => {
-          const filename = path.join(packageDir, spec, 'files', basename);
-          const content = await fs.readFile(filename);
-          return {name: basename, content};
-        }),
-      ),
-    );
-  }
+  manifest.opam.files = manifest.opam.files.concat(
+    await readPackageFiles(packageDir, spec),
+  );
 
   return manifest;
+}
+
+async function readPackageFiles(packageDir, spec) {
+  const filesDir = path.join(packageDir, spec, 'files');
+  if (await fs.exists(filesDir)) {
+    const files = await fs.readdir(filesDir);
+    return Promise.all(
+      files.map(async name => {
+        const filename = path.join(filesDir, name);
+        const content = await fs.readFile(filename);
+        return {name, content};
+      }),
+    );
+  }
+  return [];
 }
 
 async function convertOpamToManifestCollection(repository, name, packageDir) {

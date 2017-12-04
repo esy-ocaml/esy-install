@@ -95,7 +95,9 @@ export default class ResolutionMap {
 
     if (pattern) {
       if (semver.validRange(reqRange) && semver.valid(range) && !semver.satisfies(range, reqRange)) {
-        this.reporter.warn(this.reporter.lang('incompatibleResolutionVersion', pattern, reqPattern));
+        const breadcrumb = parentNames.join(' > ');
+        const prefix = `${breadcrumb}: `;
+        this.reporter.warn(prefix + this.reporter.lang('incompatibleResolutionVersion', pattern, reqPattern));
       }
     }
 

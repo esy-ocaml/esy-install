@@ -4,6 +4,7 @@ const path = require('path');
 const semver = require('semver');
 const EsyOpam = require('@esy-ocaml/esy-opam');
 const invariant = require('invariant');
+const outdent = require('outdent');
 
 import {MessageError} from '../../../errors.js';
 import type {Manifest} from '../../../types.js';
@@ -91,13 +92,15 @@ export default class OpamResolver extends ExoticResolver {
         },
       },
     };
+    if (!isValidReference(lockfileEntry.resolved)) {
+      return false;
+    }
     const isOutdated = !!// TODO: issue warning here
     (
-      !isValidReference(lockfileEntry.resolved) ||
-      chooseVersion(lockfileEntry.name, manifestCollection, {
+      solveVersionConstraint(lockfileEntry.name, manifestCollection, {
         versionRange,
         ocamlVersion,
-      }) == null
+      }).type != 'found'
     );
     return isOutdated;
   }
@@ -141,18 +144,36 @@ export default class OpamResolver extends ExoticResolver {
       this.name,
     );
 
-    const version = chooseVersion(this.name, manifestCollection, {
+    const ocamlVersion = this.resolver.ocamlVersion;
+
+    const version = solveVersionConstraint(this.name, manifestCollection, {
       versionRange,
-      ocamlVersion: this.resolver.ocamlVersion,
+      ocamlVersion,
     });
 
-    if (version == null) {
-      // TODO: figure out how to report error
-      throw new MessageError(dependencyNotFoundErrorMessage(this.request));
+    switch (version.type) {
+      case 'found':
+        const manifest = manifestCollection.versions[version.version];
+        return manifest;
+      case 'no-version-found':
+        throw new MessageError(
+          dependencyNotFoundErrorMessage('no version found', this.request),
+        );
+      case 'no-version-found-for-ocaml-constraint':
+        throw new MessageError(
+          dependencyNotFoundErrorMessage(
+            outdent`
+              no version found for the current OCaml version ${ocamlVersion}.
+              Consider updating OCaml version constraint of your package,
+              run 'npm info ocaml' to see available OCaml versions.
+            `,
+            this.request,
+          ),
+        );
+      default:
+        // TODO: why flow can't handle this?
+        invariant(false, 'Impossible');
     }
-
-    const manifest = manifestCollection.versions[version];
-    return manifest;
   }
 }
 
@@ -174,14 +195,48 @@ type MinimalManifest = {
   peerDependencies: {[name: string]: string},
 };
 
-function chooseVersion<M: MinimalManifest>(
+type Solution =
+  | {type: 'found', version: string}
+  | {type: 'no-version-found'}
+  | {type: 'no-version-found-for-ocaml-constraint'};
+
+function solveVersionConstraint<M: MinimalManifest>(
   name,
   manifestCollection: {versions: {[version: string]: M}},
   constraint: {versionRange: string, ocamlVersion: ?string},
-) {
+): Solution {
+  function findVersion(versions, versionRange) {
+    const versionsParsed = versions.map(version => {
+      const v = semver.parse(version);
+      invariant(v != null, `Invalid version: @${OPAM_SCOPE}/${name}@${version}`);
+      // This is needed so `semver.satisfies()` will accept this for `*`
+      // constraint.
+      (v: any)._prereleaseHidden = v.prerelease;
+      // $FlowFixMe: ...
+      v.opamVersion = manifestCollection.versions[version].opam.version;
+      v.prerelease = [];
+      return v;
+    });
+
+    (versionsParsed: any).sort((a, b) => {
+      return -1 * EsyOpam.versionCompare(a.opamVersion, b.opamVersion);
+    });
+
+    for (let i = 0; i < versionsParsed.length; i++) {
+      const v = versionsParsed[i];
+      if (semver.satisfies((v: any), versionRange)) {
+        return {type: 'found', version: v.raw};
+      }
+    }
+
+    return null;
+  }
+
   const {versionRange, ocamlVersion} = constraint;
 
-  let versions = Object.keys(manifestCollection.versions);
+  const allVersions = Object.keys(manifestCollection.versions);
+
+  let versions = allVersions;
 
   // check if we need to restrict the available versions based on the ocaml
   // compiler being used
@@ -203,35 +258,26 @@ function chooseVersion<M: MinimalManifest>(
     versions = versionsAvailableForOCamlVersion;
   }
 
-  const versionsParsed = versions.map(version => {
-    const v = semver.parse(version);
-    invariant(v != null, `Invalid version: @${OPAM_SCOPE}/${name}@${version}`);
-    // This is needed so `semver.satisfies()` will accept this for `*`
-    // constraint.
-    (v: any)._prereleaseHidden = v.prerelease;
-    // $FlowFixMe: ...
-    v.opamVersion = manifestCollection.versions[version].opam.version;
-    v.prerelease = [];
-    return v;
-  });
-
-  (versionsParsed: any).sort((a, b) => {
-    return -1 * EsyOpam.versionCompare(a.opamVersion, b.opamVersion);
-  });
-
-  for (let i = 0; i < versionsParsed.length; i++) {
-    const v = versionsParsed[i];
-    if (semver.satisfies((v: any), versionRange)) {
-      return v.raw;
-    }
+  const solution = findVersion(versions, versionRange);
+  if (solution != null) {
+    return solution;
   }
 
-  return null;
+  if (ocamlVersion != null) {
+    const solutionWithoutOCamlconstraint = findVersion(allVersions, versionRange);
+    if (solutionWithoutOCamlconstraint != null) {
+      return {type: 'no-version-found-for-ocaml-constraint'};
+    } else {
+      return {type: 'no-version-found'};
+    }
+  } else {
+    return {type: 'no-version-found'};
+  }
 }
 
-function dependencyNotFoundErrorMessage(req: PackageRequest) {
+function dependencyNotFoundErrorMessage(reason: string, req: PackageRequest) {
   const path = req.parentNames.concat(req.pattern).join(' > ');
-  return `${path}: no compatible version found`;
+  return `${path}: ${reason}`;
 }
 
 type OpamPackageReference = {

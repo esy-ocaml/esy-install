@@ -21,8 +21,8 @@ export class ProcessSpawnError extends MessageError {
 }
 
 export class SecurityError extends MessageError {
-  constructor(...args) {
-    super(...args);
+  constructor(msg: string, code?: string) {
+    super(msg, code);
     fixupErrorSubclassing(this, SecurityError);
   }
 }
@@ -31,8 +31,8 @@ export class ProcessTermError extends MessageError {
   EXIT_CODE: ?number;
   EXIT_SIGNAL: ?string;
 
-  constructor(...args) {
-    super(...args);
+  constructor(msg: string, code?: string) {
+    super(msg, code);
     fixupErrorSubclassing(this, ProcessTermError);
   }
 }

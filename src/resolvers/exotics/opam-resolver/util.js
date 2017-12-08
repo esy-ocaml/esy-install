@@ -10,26 +10,38 @@ import * as child from '../../../util/child.js';
 export async function cloneOrUpdateRepository(
   remotePath: string,
   checkoutPath: string,
-  params?: {onClone?: () => void, onUpdate?: () => void} = {},
+  params?: {branch?: string, onClone?: () => void, onUpdate?: () => void} = {},
 ) {
+  const {onClone, onUpdate, branch = 'master'} = params;
   if (await fs.exists(checkoutPath)) {
     const localCommit = await gitReadMaster(checkoutPath);
     const remoteCommit = await gitReadMaster(remotePath);
+    const curBranch = await gitCurrentBranchName(checkoutPath);
+    if (curBranch !== branch) {
+      await fs.unlink(checkoutPath);
+      return cloneOrUpdateRepository(remotePath, checkoutPath, params);
+    }
     if (localCommit !== remoteCommit) {
-      if (params.onUpdate != null) {
-        params.onUpdate();
+      if (onUpdate != null) {
+        onUpdate();
       }
-      // TODO: this could be done more efficiently
-      await child.spawn('git', ['pull', '-f', remotePath, 'master'], {
+      await child.spawn('git', ['pull', '--depth', '5', '-f', remotePath, branch], {
         cwd: checkoutPath,
       });
     }
   } else {
-    if (params.onClone != null) {
-      params.onClone();
+    if (onClone != null) {
+      onClone();
     }
-    // TODO: this could be done more efficiently
-    await child.spawn('git', ['clone', '--depth', '5', remotePath, checkoutPath]);
+    await child.spawn('git', [
+      'clone',
+      '--branch',
+      branch,
+      '--depth',
+      '5',
+      remotePath,
+      checkoutPath,
+    ]);
   }
 }
 
@@ -37,6 +49,13 @@ export async function gitReadMaster(repo: string) {
   const data = await child.spawn('git', ['ls-remote', repo, '-r', 'heads/master']);
   const [commitId] = data.split('\t');
   return commitId.trim();
+}
+
+export async function gitCurrentBranchName(repo: string) {
+  const data = await child.spawn('git', ['symbolic-ref', '-q', 'HEAD'], {cwd: repo});
+  const fullBranchName = data.trim();
+  const branchName = fullBranchName.replace(/^refs\/heads\//, '');
+  return branchName;
 }
 
 export function stripVersionPrelease(version: string): string {

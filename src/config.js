@@ -59,6 +59,9 @@ export type ConfigOptions = {
 
   commandName?: ?string,
   registry?: ?string,
+
+  esyStoreVersion?: string,
+  esyMetadataVersion?: string,
 };
 
 type PackageMetadata = {
@@ -172,6 +175,10 @@ export default class Config {
 
   //
   commandName: string;
+
+  // these are nullable just not to cause flow errors in other parts of the yarn
+  esyStoreVersion: ?string;
+  esyMetadataVersion: ?string;
 
   /**
    * Execute a promise produced by factory if it doesn't exist in our cache with
@@ -383,6 +390,9 @@ export default class Config {
     if (this.modulesFolder) {
       this.rootModuleFolders.push(this.modulesFolder);
     }
+
+    this.esyStoreVersion = opts.esyStoreVersion;
+    this.esyMetadataVersion = opts.esyMetadataVersion;
   }
 
   /**

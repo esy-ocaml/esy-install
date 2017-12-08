@@ -182,6 +182,7 @@ async function cloneOverridesRepo(config) {
   await cloneOrUpdateRepository(OPAM_REPOSITORY_OVERRIDE, checkoutPath, {
     onClone,
     onUpdate,
+    branch: config.esyMetadataVersion || '4',
   });
   return checkoutPath;
 }

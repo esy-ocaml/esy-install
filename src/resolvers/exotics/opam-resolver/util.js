@@ -16,7 +16,7 @@ export async function cloneOrUpdateRepository(
   if (await fs.exists(checkoutPath)) {
     const localCommit = await gitReadMaster(checkoutPath);
     const remoteCommit = await gitReadMaster(remotePath);
-    const curBranch = await gitCurrentBranchName(checkoutPath);
+    const curBranch = await defaultOnFailure(gitCurrentBranchName(checkoutPath), null);
     if (curBranch !== branch) {
       await fs.unlink(checkoutPath);
       return cloneOrUpdateRepository(remotePath, checkoutPath, params);
@@ -25,9 +25,13 @@ export async function cloneOrUpdateRepository(
       if (onUpdate != null) {
         onUpdate();
       }
-      await child.spawn('git', ['pull', '--depth', '5', '-f', remotePath, branch], {
-        cwd: checkoutPath,
-      });
+      await child.spawn(
+        'git',
+        ['pull', '--depth', '5', '-f', remotePath, `${branch}:${branch}`],
+        {
+          cwd: checkoutPath,
+        },
+      );
     }
   } else {
     if (onClone != null) {
@@ -64,4 +68,12 @@ export function stripVersionPrelease(version: string): string {
   v.prerelease = [];
   // $FlowFixMe: update semver typings
   return v.format();
+}
+
+async function defaultOnFailure(promise, defaultValue) {
+  try {
+    return await promise;
+  } catch (_err) {
+    return defaultValue;
+  }
 }

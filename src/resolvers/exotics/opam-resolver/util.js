@@ -14,10 +14,10 @@ export async function cloneOrUpdateRepository(
 ) {
   const {onClone, onUpdate, branch = 'master'} = params;
   if (await fs.exists(checkoutPath)) {
-    const localCommit = await gitReadMaster(checkoutPath);
-    const remoteCommit = await gitReadMaster(remotePath);
+    const localCommit = await gitReadMaster(checkoutPath, branch);
+    const remoteCommit = await gitReadMaster(remotePath, branch);
     const curBranch = await defaultOnFailure(gitCurrentBranchName(checkoutPath), null);
-    if (curBranch !== branch) {
+    if (curBranch != branch) {
       await fs.unlink(checkoutPath);
       return cloneOrUpdateRepository(remotePath, checkoutPath, params);
     }
@@ -49,8 +49,8 @@ export async function cloneOrUpdateRepository(
   }
 }
 
-export async function gitReadMaster(repo: string) {
-  const data = await child.spawn('git', ['ls-remote', repo, '-r', 'heads/master']);
+export async function gitReadMaster(repo: string, branch?: string = 'master') {
+  const data = await child.spawn('git', ['ls-remote', repo, '-r', `heads/${branch}`]);
   const [commitId] = data.split('\t');
   return commitId.trim();
 }

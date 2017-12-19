@@ -183,6 +183,9 @@ async function cloneOverridesRepo(config) {
     onClone,
     onUpdate,
     branch: String(config.esyMetadataVersion || '4'),
+    forceUpdate: false,
+    offline: config.offline,
+    preferOffline: config.preferOffline,
   });
   return checkoutPath;
 }

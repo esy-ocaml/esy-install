@@ -4,24 +4,57 @@ const invariant = require('invariant');
 const path = require('path');
 const semver = require('semver');
 
+import {MessageError} from '../../../errors.js';
+import * as network from '../../../util/network.js';
 import * as fs from '../../../util/fs.js';
 import * as child from '../../../util/child.js';
+
+type Params = {
+  branch?: string,
+  onClone?: () => void,
+  onUpdate?: () => void,
+
+  offline?: boolean,
+  preferOffline?: boolean,
+
+  forceUpdate?: boolean,
+};
 
 export async function cloneOrUpdateRepository(
   remotePath: string,
   checkoutPath: string,
-  params?: {branch?: string, onClone?: () => void, onUpdate?: () => void} = {},
+  params?: Params = {},
 ) {
-  const {onClone, onUpdate, branch = 'master'} = params;
+  const {
+    onClone,
+    onUpdate,
+    branch = 'master',
+    forceUpdate = true,
+    offline,
+    preferOffline,
+  } = params;
+  const isOffline = network.isOffline();
+
   if (await fs.exists(checkoutPath)) {
-    const localCommit = await gitReadMaster(checkoutPath, branch);
-    const remoteCommit = await gitReadMaster(remotePath, branch);
     const curBranch = await defaultOnFailure(gitCurrentBranchName(checkoutPath), null);
     if (curBranch != branch) {
       await fs.unlink(checkoutPath);
       return cloneOrUpdateRepository(remotePath, checkoutPath, params);
     }
-    if (localCommit !== remoteCommit) {
+
+    if ((preferOffline || isOffline) && !forceUpdate) {
+      return;
+    }
+
+    if (isOffline && forceUpdate) {
+      throw new Error(`unable to update ${remotePath} repository while offline`);
+    }
+
+    const localCommit = await gitReadMaster(checkoutPath, branch);
+    const remoteCommit = await gitReadMaster(remotePath, branch);
+    const updateIsNeeded = localCommit !== remoteCommit;
+
+    if (updateIsNeeded) {
       if (onUpdate != null) {
         onUpdate();
       }
@@ -34,9 +67,14 @@ export async function cloneOrUpdateRepository(
       );
     }
   } else {
+    if (isOffline) {
+      throw new Error(`unable to clone ${remotePath} repository while offline`);
+    }
+
     if (onClone != null) {
       onClone();
     }
+
     await child.spawn('git', [
       'clone',
       '--branch',

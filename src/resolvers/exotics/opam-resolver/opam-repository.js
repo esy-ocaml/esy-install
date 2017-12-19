@@ -46,7 +46,7 @@ export async function getManifestCollection(
   return manifestCollection;
 }
 
-async function initImpl(config) {
+async function initImpl(config: Config) {
   const checkoutPath = path.join(config.cacheFolder, 'opam-repository');
   const onClone = () => {
     config.reporter.info('Cloning ocaml/opam-repository (this might take a while)...');
@@ -59,6 +59,9 @@ async function initImpl(config) {
   await cloneOrUpdateRepository(OPAM_REPOSITORY, checkoutPath, {
     onClone,
     onUpdate,
+    forceUpdate: false,
+    offline: config.offline,
+    preferOffline: config.preferOffline,
   });
   const override = await OpamRepositoryOverride.init(config);
   return {checkoutPath, override};

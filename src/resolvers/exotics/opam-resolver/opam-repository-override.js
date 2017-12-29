@@ -31,6 +31,8 @@ export type OpamPackageOverride = {
     [name: string]: {val: string, scope?: 'global'},
   },
   opam: {
+    url: string,
+    checksum: string,
     files: Array<{name: string, content: string}>,
     patches: Array<{name: string, content: string}>,
   },
@@ -75,6 +77,8 @@ export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamM
       };
       manifest.opam = {
         ...opam,
+        url: override.opam.url || opam.url,
+        checksum: override.opam.checksum || opam.checksum,
         files: opam.files.concat(override.opam.files),
         patches: opam.patches.concat(override.opam.patches),
       };

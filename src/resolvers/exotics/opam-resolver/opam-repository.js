@@ -80,7 +80,7 @@ async function convertOpamToManifest(repository, name, spec, packageDir) {
 
   const urlFilename = path.join(packageDir, spec, 'url');
 
-  if (await fs.exists(urlFilename)) {
+  if (manifest.opam.url == null && (await fs.exists(urlFilename))) {
     const urlData = await fs.readFile(urlFilename);
     if (urlData != null) {
       const opamUrl = EsyOpam.parseOpamUrl(urlData);

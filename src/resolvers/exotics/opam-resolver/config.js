@@ -10,5 +10,7 @@ export const OPAM_REPOSITORY_OVERRIDE = process.env.ESY_OPAM_REPOSITORY_OVERRIDE
   ? process.env.ESY_OPAM_REPOSITORY_OVERRIDE
   : 'https://github.com/esy-ocaml/esy-opam-override.git';
 
+export const OPAM_REPOSITORY_URLS = 'https://opam.ocaml.org/urls.txt';
+
 export const OPAM_REPOSITORY_OVERRIDE_CHECKOUT =
   process.env.ESY_OPAM_REPOSITORY_OVERRIDE_CHECKOUT;

@@ -10,8 +10,10 @@ import {cloneOrUpdateRepository} from './util.js';
 import {OPAM_REPOSITORY, OPAM_SCOPE} from './config.js';
 import type {OpamManifest} from './index.js';
 import * as OpamRepositoryOverride from './opam-repository-override.js';
+import * as OpamUrls from './opam-urls.js';
 
 type OpamRepository = {
+  urlIndex: OpamUrls.URLIndex,
   checkoutPath: string,
   override: OpamRepositoryOverride.OpamRepositoryOverride,
 };
@@ -49,33 +51,56 @@ export async function getManifestCollection(
 async function initImpl(config: Config) {
   const checkoutPath = path.join(config.cacheFolder, 'opam-repository');
   const onClone = () => {
-    config.reporter.info('Cloning ocaml/opam-repository (this might take a while)...');
+    config.reporter.info('Fetching OPAM repository...');
   };
   const onUpdate = () => {
-    config.reporter.info(
-      'Updating ocaml/opam-repository checkout (this might take a while)...',
-    );
+    config.reporter.info('Updating OPAM repository...');
   };
-  await cloneOrUpdateRepository(OPAM_REPOSITORY, checkoutPath, {
-    onClone,
-    onUpdate,
-    forceUpdate: false,
-    offline: config.offline,
-    preferOffline: config.preferOffline,
-  });
-  const override = await OpamRepositoryOverride.init(config);
-  return {checkoutPath, override};
+  const [_, override, urlIndex] = await Promise.all([
+    cloneOrUpdateRepository(OPAM_REPOSITORY, checkoutPath, {
+      onClone,
+      onUpdate,
+      forceUpdate: false,
+      offline: config.offline,
+      preferOffline: config.preferOffline,
+    }),
+    OpamRepositoryOverride.init(config),
+    OpamUrls.fetchIndex(config),
+  ]);
+  return {urlIndex, checkoutPath, override};
 }
 
 async function convertOpamToManifest(repository, name, spec, packageDir) {
   const [_, ...versionParts] = spec.split('.');
-  const version = versionParts.join('.');
+  const opamVersion = versionParts.join('.');
   const opamFilename = path.join(packageDir, spec, 'opam');
   const opamFile = EsyOpam.parseOpam(await fs.readFile(opamFilename));
-  let manifest: OpamManifest = (EsyOpam.renderOpam(name, version, opamFile): any);
+  let manifest: OpamManifest = (EsyOpam.renderOpam(name, opamVersion, opamFile): any);
   normalizeManifest(manifest);
-  manifest = OpamRepositoryOverride.applyOverride(repository.override, manifest);
-  manifest.opam.version = version;
+
+  const overridenManifest = OpamRepositoryOverride.applyOverride(
+    repository.override,
+    manifest,
+  );
+
+  // If there's no override available — we can try to use prepared tarballs from
+  // opam archive which already has patches applied.
+  if (overridenManifest == null) {
+    const urlRecord = await OpamUrls.resolve(repository.urlIndex, name, opamVersion);
+    if (urlRecord != null) {
+      manifest.opam.url = urlRecord.url;
+      manifest.opam.checksum = urlRecord.checksum;
+      manifest.opam.version = opamVersion;
+      manifest._uid = crypto.hash(JSON.stringify(manifest));
+      return manifest;
+    }
+  }
+
+  if (overridenManifest != null) {
+    manifest = overridenManifest;
+  }
+
+  manifest.opam.version = opamVersion;
   manifest._uid = crypto.hash(JSON.stringify(manifest));
 
   const urlFilename = path.join(packageDir, spec, 'url');

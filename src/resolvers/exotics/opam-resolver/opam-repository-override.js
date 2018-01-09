@@ -52,13 +52,16 @@ export function init(config: Config): Promise<OpamRepositoryOverride> {
   return _initializing;
 }
 
-export function applyOverride(overrides: OpamRepositoryOverride, manifest: OpamManifest) {
+export function applyOverride(
+  overrides: OpamRepositoryOverride,
+  manifest: OpamManifest,
+): ?OpamManifest {
   const packageOverrides = overrides.overrides.get(
     manifest.name.slice(`@${OPAM_SCOPE}/`.length),
   );
 
   if (packageOverrides == null) {
-    return manifest;
+    return null;
   }
 
   for (const [versionRange, override] of packageOverrides.entries()) {
@@ -174,14 +177,10 @@ async function cloneOverridesRepo(config) {
   }
   const checkoutPath = path.join(config.cacheFolder, 'esy-opam-override');
   const onClone = () => {
-    config.reporter.info(
-      'Cloning esy-ocaml/esy-opam-override (this might take a while)...',
-    );
+    config.reporter.info('Fetching OPAM repository overrides...');
   };
   const onUpdate = () => {
-    config.reporter.info(
-      'Updating esy-ocaml/esy-opam-override checkout (this might take a while)...',
-    );
+    config.reporter.info('Updating OPAM repository overrides...');
   };
   await cloneOrUpdateRepository(OPAM_REPOSITORY_OVERRIDE, checkoutPath, {
     onClone,

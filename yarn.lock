@@ -2,9 +2,9 @@
 # yarn lockfile v1
 
 
-"@esy-ocaml/esy-opam@0.0.7":
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/@esy-ocaml/esy-opam/-/esy-opam-0.0.7.tgz#368dd776b0e13d0db4e5ffe5ced12a7fde44eb96"
+"@esy-ocaml/esy-opam@0.0.15":
+  version "0.0.15"
+  resolved "https://registry.yarnpkg.com/@esy-ocaml/esy-opam/-/esy-opam-0.0.15.tgz#97656c8e5774cf84692a680319784cb833cc5b70"
 
 "@gulp-sourcemaps/identity-map@1.X":
   version "1.0.1"

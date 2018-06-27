@@ -153,7 +153,7 @@ function writeJson(filename, object): Promise<void> {
   return fs.writeFile(filename, data, {encoding: 'utf8'});
 }
 
-const {bashExec} = __non_webpack_require__("esy-cygwin")
+const {bashExec} = __non_webpack_require__("esy-bash")
 const normalizePathForBash = (p) => {
     const normalizedPath = path.normalize(p)
     

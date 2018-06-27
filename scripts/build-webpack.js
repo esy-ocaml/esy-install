@@ -25,7 +25,7 @@ const externals =  {
     commonjs: '@esy-ocaml/esy-opam',
     commonjs2: '@esy-ocaml/esy-opam',
   },
-  'esy-cygwin': 'esy-cygwin'
+  'esy-bash': 'esy-bash'
 };
 
 //

@@ -153,6 +153,15 @@ function writeJson(filename, object): Promise<void> {
   return fs.writeFile(filename, data, {encoding: 'utf8'});
 }
 
+const {bashExec} = __non_webpack_require__("esy-cygwin")
+const normalizePathForBash = (p) => {
+    const normalizedPath = path.normalize(p)
+    
+    const fixedSlashPath = normalizedPath.split("\\").join("/")
+
+    return fixedSlashPath.replace("C:/", "/cygdrive/c/")
+}
+
 async function unpackOpamTarball(
   filename,
   dest,
@@ -162,7 +171,7 @@ async function unpackOpamTarball(
     await extractZip(filename, dest);
   } else {
     const unpackOptions = format === 'gzip' ? '-xzf' : format === 'xz' ? '-xJf' : '-xjf';
-    await child.exec(`tar ${unpackOptions} ${filename} -C ${dest}`);
+    await bashExec(`tar ${unpackOptions} ${normalizePathForBash(filename)} -C ${normalizePathForBash(dest)}`, {});
   }
 }
 
@@ -225,7 +234,7 @@ async function applyPatches(dest, patches) {
     const patchFilename = path.join(dest, patch.name);
     await fs.writeFile(patchFilename, patch.content, {encoding: 'utf8'});
     try {
-      await child.exec(`bash -c "patch -p1 < ${patchFilename}"`, {
+      await bashExec(`patch -p1 < ${patchFilename}`, {
         cwd: dest,
         stdio: 'inherit',
       });

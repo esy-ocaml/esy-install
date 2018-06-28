@@ -56,6 +56,7 @@ async function initImpl(config: Config) {
   const onUpdate = () => {
     config.reporter.info('Updating OPAM repository...');
   };
+  console.log(`- Cloning OPAM repository from ${OPAM_REPOSITORY} to ${checkoutPath}`);
   const [_, override, urlIndex] = await Promise.all([
     cloneOrUpdateRepository(OPAM_REPOSITORY, checkoutPath, {
       onClone,

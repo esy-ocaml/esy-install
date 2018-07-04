@@ -5,6 +5,7 @@
 import type {FetchedOverride} from '../types.js';
 
 const nodeCrypto = require('crypto');
+const os = require("os");
 import * as nodeFs from 'fs';
 import * as zlib from 'zlib';
 import * as path from 'path';
@@ -21,6 +22,12 @@ import * as constants from '../constants.js';
 import * as fs from '../util/fs.js';
 import * as child from '../util/child.js';
 import DecompressZip from 'decompress-zip';
+
+// We don't want to bundle `esy-bash` with the built webpack bundle,
+// so we use `__non_webpack_require__`
+const { bashExec, toCygwinPath } = __non_webpack_require__("esy-bash");
+
+const isWindows = os.platform() === "win32";
 
 export default class OpamFetcher extends TarballFetcher {
   getTarballMirrorPath(): ?string {
@@ -153,15 +160,6 @@ function writeJson(filename, object): Promise<void> {
   return fs.writeFile(filename, data, {encoding: 'utf8'});
 }
 
-const {bashExec} = __non_webpack_require__("esy-bash")
-const normalizePathForBash = (p) => {
-    const normalizedPath = path.normalize(p)
-    
-    const fixedSlashPath = normalizedPath.split("\\").join("/")
-
-    return fixedSlashPath.replace("C:/", "/cygdrive/c/")
-}
-
 async function unpackOpamTarball(
   filename,
   dest,
@@ -171,7 +169,14 @@ async function unpackOpamTarball(
     await extractZip(filename, dest);
   } else {
     const unpackOptions = format === 'gzip' ? '-xzf' : format === 'xz' ? '-xJf' : '-xjf';
-    await bashExec(`tar ${unpackOptions} ${normalizePathForBash(filename)} -C ${normalizePathForBash(dest)}`, {});
+
+    if (isWindows) {
+        // On Windows, we use the 'esy-bash' cygwin environment, since `tar` doesn't come out of the box.
+        // Note that `tar` is one command that requires the paths to be in the Cygwin-format vs the Windows format.
+        await bashExec(`tar ${unpackOptions} ${toCygwinPath(filename)} -C ${toCygwinPath(dest)}`);
+    } else {
+        await child.exec(`tar ${unpackOptions} ${filename} -C ${dest}`);
+    }
   }
 }
 
@@ -234,10 +239,17 @@ async function applyPatches(dest, patches) {
     const patchFilename = path.join(dest, patch.name);
     await fs.writeFile(patchFilename, patch.content, {encoding: 'utf8'});
     try {
-      await bashExec(`patch -p1 < ${patchFilename}`, {
-        cwd: dest,
-        stdio: 'inherit',
-      });
+      if (isWindows) {
+          await bashExec(`patch -p1 < ${toCygwinPath(patchFilename)}`, {
+            cwd: dest,
+            stdio: 'inherit',
+          });
+      } else {
+          await child.exec(`bash -c "patch -p1 < ${patchFilename}"`, {
+             cwd: dest,
+             stdio: 'inherit',
+           });
+      }
     } finally {
       await fs.unlink(patchFilename);
     }

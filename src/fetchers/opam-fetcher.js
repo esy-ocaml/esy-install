@@ -240,7 +240,7 @@ async function applyPatches(dest, patches) {
     await fs.writeFile(patchFilename, patch.content, {encoding: 'utf8'});
     try {
       if (isWindows) {
-          await bashExec(`patch -p1 < ${patchFilename}`, {
+          await bashExec(`patch -p1 -i ${toCygwinPath(patchFilename)}`, {
             cwd: dest,
             stdio: 'inherit',
           });

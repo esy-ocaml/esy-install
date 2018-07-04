@@ -1,6 +1,14 @@
 /* @flow */
 
+const os = require("os");
+
 export const OPAM_SCOPE = 'opam';
+
+const isWindows = os.platform() === "win32";
+
+const defaultRepository = isWindows ?
+  'https://github.com/fdopen/opam-repository-mingw.git'
+  : 'https://github.com/ocaml/opam-repository.git';
 
 export const OPAM_REPOSITORY = process.env.ESY_OPAM_REPOSITORY
   ? process.env.ESY_OPAM_REPOSITORY

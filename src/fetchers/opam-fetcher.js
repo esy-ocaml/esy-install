@@ -23,10 +23,6 @@ import * as fs from '../util/fs.js';
 import * as child from '../util/child.js';
 import DecompressZip from 'decompress-zip';
 
-// We don't want to bundle `esy-bash` with the built webpack bundle,
-// so we use `__non_webpack_require__`
-const { bashExec, toCygwinPath } = __non_webpack_require__("esy-bash");
-
 const isWindows = os.platform() === "win32";
 
 export default class OpamFetcher extends TarballFetcher {
@@ -173,6 +169,7 @@ async function unpackOpamTarball(
     if (isWindows) {
         // On Windows, we use the 'esy-bash' cygwin environment, since `tar` doesn't come out of the box.
         // Note that `tar` is one command that requires the paths to be in the Cygwin-format vs the Windows format.
+        const { bashExec, toCygwinPath } = __non_webpack_require__("esy-bash");
         await bashExec(`tar ${unpackOptions} ${toCygwinPath(filename)} -C ${toCygwinPath(dest)}`);
     } else {
         await child.exec(`tar ${unpackOptions} ${filename} -C ${dest}`);
@@ -240,6 +237,7 @@ async function applyPatches(dest, patches) {
     await fs.writeFile(patchFilename, patch.content, {encoding: 'utf8'});
     try {
       if (isWindows) {
+          const { bashExec, toCygwinPath } = __non_webpack_require__("esy-bash");
           await bashExec(`patch -p1 -i ${patchFilename}`, {
             cwd: dest,
             stdio: 'inherit',

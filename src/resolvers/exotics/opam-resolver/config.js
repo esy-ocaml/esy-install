@@ -4,7 +4,7 @@ export const OPAM_SCOPE = 'opam';
 
 export const OPAM_REPOSITORY = process.env.ESY_OPAM_REPOSITORY
   ? process.env.ESY_OPAM_REPOSITORY
-  : 'https://github.com/ocaml/opam-repository.git';
+  : 'https://github.com/fdopen/opam-repository-mingw.git';
 
 export const OPAM_REPOSITORY_OVERRIDE = process.env.ESY_OPAM_REPOSITORY_OVERRIDE
   ? process.env.ESY_OPAM_REPOSITORY_OVERRIDE
